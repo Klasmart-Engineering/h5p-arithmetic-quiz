@@ -25,6 +25,9 @@ H5P.ArithmeticQuiz.GamePage = (function ($, UI, QuizType) {
     self.useFractions = options.useFractions;
     self.maxQuestions = options.maxQuestions;
     self.sliding = false;
+    self.subContentIds = options.subContentIds;
+    self.callbacks = {};
+    self.callbacks.trigger = self.callbacks.trigger || H5P.externalDispatcher.trigger;
 
     self.$gamepage = $('<div>', {
       'class': 'h5p-baq-game counting-down'
@@ -301,7 +304,14 @@ H5P.ArithmeticQuiz.GamePage = (function ($, UI, QuizType) {
           // Emit screenshot
           if (H5P && H5P.KLScreenshot) {
             H5P.KLScreenshot.takeScreenshot(
-              self,
+              {
+                subContentId: self.subContentIds[self.progressbar.currentStep - 1],
+                getTitle: () => {
+                  return self.translations.slideOfTotal
+                    .replace(':num', self.progressbar.currentStep)
+                    .replace(':total', self.maxQuestions)
+                }
+              },
               self.$gamepage.get(0).parentNode
             );
           }
