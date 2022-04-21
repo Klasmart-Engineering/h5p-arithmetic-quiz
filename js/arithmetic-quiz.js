@@ -55,6 +55,8 @@ H5P.ArithmeticQuiz = (function ($) {
       options.subContentIds.split(';') :
       null;
 
+    self.options.callbacks = { trigger: self.trigger };
+
     self.gamePage = new H5P.ArithmeticQuiz.GamePage(self.options.quizType, self.options, id);
     self.gamePage.on('last-slide', function (e) {
       self.triggerXAPIScored(e.data.score, e.data.numQuestions, 'answered');
