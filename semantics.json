@@ -126,7 +126,6 @@
     "type": "text",
     "maxLength": 524288,
     "optional": true,
-    "state": "new",
     "widget": "uuid",
     "uuid": {
       "length": 100
