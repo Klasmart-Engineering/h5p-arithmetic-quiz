@@ -19,6 +19,8 @@ H5P.ArithmeticQuiz = (function ($) {
     // Add viewport meta to iframe
     $('head').append('<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">');
 
+    this.contentId = id;
+
     var self = this;
     // Extend defaults with provided options
     self.options = $.extend(true, {}, {
@@ -52,6 +54,12 @@ H5P.ArithmeticQuiz = (function ($) {
     }, options);
     self.currentWidth = 0;
 
+    self.options.subContentIds = (typeof options.subContentIds === 'string') ?
+      options.subContentIds.split(';') :
+      null;
+
+    self.options.callbacks = { trigger: self.trigger };
+
     self.previousState = extras && extras.previousState && extras.previousState.gamePage ?
       extras.previousState :
       { gamePage: {} };
@@ -63,9 +71,47 @@ H5P.ArithmeticQuiz = (function ($) {
       { previousState: self.previousState.gamePage || {} }
     );
 
+    // Emit xAPI progressed
+    self.gamePage.on('progressed', function (e) {
+      var xAPIEvent = self.createXAPIEventTemplate('progressed');
+      xAPIEvent.data.statement.object.definition.extensions['http://id.tincanapi.com/extension/ending-point'] = e.data;
+      self.trigger(xAPIEvent);
+    });
+
     // Kidsloop Live session storage will listen
     self.gamePage.on('kllStoreSessionState', function () {
       self.trigger('kllStoreSessionState', undefined, { bubbles: true, external: true });
+    });
+
+    // Emit "fake subcontent's" xAPI answered statement
+    self.gamePage.on('answered', function (e) {
+      var instance = e.data;
+
+      var xAPIEvent = self.createXAPIEventTemplate('answered');
+      xAPIEvent.setContext({
+        parent: self,
+        libraryInfo: {
+          versionedNameNoSpaces: 'H5P.ArithmeticQuizPage-' + self.libraryInfo.majorVersion + '.' + self.libraryInfo.minorVersion
+        },
+      });
+
+      xAPIEvent.setObject(instance);
+      for (var prop in instance.xAPIDefinition) {
+        xAPIEvent.data.statement.object.definition[prop] = instance.xAPIDefinition[prop];
+      }
+
+      xAPIEvent.setScoredResult(
+        instance.getScore(),
+        instance.getMaxScore(),
+        instance,
+        true,
+        instance.getScore() === instance.getMaxScore()
+      );
+      for (var prop in instance.xAPIResult) {
+        xAPIEvent.data.statement.result[prop] = instance.xAPIResult[prop];
+      }
+
+      self.trigger(xAPIEvent);
     });
 
     self.gamePage.on('last-slide', function (e) {
