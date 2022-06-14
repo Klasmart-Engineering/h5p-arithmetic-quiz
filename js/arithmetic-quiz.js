@@ -13,8 +13,9 @@ H5P.ArithmeticQuiz = (function ($) {
    * @namespace H5P
    * @param {Object} options
    * @param {number} id
+   * @param {object} extras Extra parameters like metadata/previousState.
    */
-  function ArithmeticQuiz(options, id) {
+  function ArithmeticQuiz(options, id, extras) {
     // Add viewport meta to iframe
     $('head').append('<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">');
 
@@ -59,7 +60,21 @@ H5P.ArithmeticQuiz = (function ($) {
 
     self.options.callbacks = { trigger: self.trigger };
 
-    self.gamePage = new H5P.ArithmeticQuiz.GamePage(self.options.quizType, self.options, id);
+    self.previousState = extras && extras.previousState && extras.previousState.gamePage ?
+      extras.previousState :
+      { gamePage: {} };
+
+    self.gamePage = new H5P.ArithmeticQuiz.GamePage(
+      self.options.quizType,
+      self.options,
+      id,
+      { previousState: self.previousState.gamePage || {} }
+    );
+
+    // Kidsloop Live session storage will listen
+    self.gamePage.on('kllStoreSessionState', function () {
+      self.trigger('kllStoreSessionState', undefined, { bubbles: true, external: true });
+    }
 
     // Emit xAPI progressed
     self.gamePage.on('progressed', function (e) {
@@ -126,7 +141,6 @@ H5P.ArithmeticQuiz = (function ($) {
       $('.h5p-baq-result-page').css({height: height});
     });
 
-
     /**
      * Attach function called by H5P framework to insert H5P content into page
      *
@@ -153,6 +167,17 @@ H5P.ArithmeticQuiz = (function ($) {
         setTimeout(function () {
           H5P.ArithmeticQuiz.SoundEffects.setup(self.getLibraryFilePath(''));
         }, 1);
+
+        // Recreate previous game state or result page
+        if (self.previousState.gamePage.slide > 0 && self.previousState.gamePage.slide <= self.options.maxQuestions) {
+          self.introPage.trigger('start-game');
+        }
+        else if (self.previousState.gamePage.slide > self.options.maxQuestions) {
+          self.gamePage.countdownWidget.$countdownWidget.attr('aria-hidden', true);
+          self.gamePage.countdownWidget.trigger('ignition');
+          self.gamePage.handleLastSlide();
+          self.introPage.remove();
+        };
       }
     };
 
@@ -190,6 +215,14 @@ H5P.ArithmeticQuiz = (function ($) {
 
   return ArithmeticQuiz;
 })(H5P.jQuery);
+
+/**
+ * Answer call to retrieve the current state.
+ * @return {object} Current state.
+ */
+H5P.ArithmeticQuiz.prototype.getCurrentState = function () {
+  return { gamePage: this.gamePage.getCurrentState() };
+};
 
 /**
  * Enum defining the different arithmetic types
